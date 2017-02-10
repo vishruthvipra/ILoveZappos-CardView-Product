@@ -1,10 +1,13 @@
 package com.example.vishruthkrishnaprasad.ilovezappos;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -39,6 +42,15 @@ import java.net.URL;
 /**
  * Created by vishruthkrishnaprasad on 31/1/17.
  */
+
+/* This is where the user enters a query in the search bar located on the toolbar and the Activity
+ displays the product corresponding to the searchQuery
+
+ When the button consists of a plus sign, the user can add the product to the cart
+ When the green button consisting of a check mark appears, the user has successfully added the product
+ in the cart and can remove the product from the cart by clicking on it again
+*/
+
 public class MainActivity extends AppCompatActivity {
 
     ActivityMainBinding activityMainBinding;
@@ -64,11 +76,10 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
 
+        // A custom styled toolbar is added at the top of the screen
         setSupportActionBar(activityMainBinding.toolbar);
-        getSupportActionBar().setTitle("I Love Zappos");
 
         activityMainBinding.recyclerView.setAdapter(adapter);
-
 
         fabAddCart = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.fab_add_cart);
         fabCancel = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.fab_cancel);
@@ -88,6 +99,7 @@ public class MainActivity extends AppCompatActivity {
                    hence, no item will not be added to cart
                    NOTE: adding item to cart is just a visual effect and has no database updates
                          in this app*/
+
                 if (!isProductnull) {
 
                     // unhide added to cart button and make it clickable
@@ -98,12 +110,25 @@ public class MainActivity extends AppCompatActivity {
                     activityMainBinding.fabCheck.startAnimation(fabFlubbergrow);
                     activityMainBinding.fabCheck.startAnimation(fabFlubbershrink);
 
-                    Toast.makeText(MainActivity.this, "Added to Cart! Click again to remove", Toast.LENGTH_SHORT).show();
-
                     // when user has added the item into the cart, hide the add to cart button
                     activityMainBinding.fabPlus.hide();
                     // disable add to cart button
                     activityMainBinding.fabPlus.setClickable(false);
+
+                    // An alert dialog alerts the user appropriately
+                    // when the user click on the FloatingActionButton
+                    final Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            // Wait for 800 ms for the user to observe the cart animation
+                            AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this, R.style.MyDialogTheme);
+                            alert.setTitle(R.string.add_str);
+                            alert.setMessage("Click again to remove");
+                            alert.setPositiveButton("OK", null);
+                            alert.show();
+                        }
+                    }, 800);
 
                 } else {
                     Toast.makeText(MainActivity.this, "No product available", Toast.LENGTH_SHORT).show();
@@ -120,7 +145,20 @@ public class MainActivity extends AppCompatActivity {
                 activityMainBinding.fabPlus.setClickable(true);
                 activityMainBinding.fabPlus.startAnimation(fabFlubbergrow);
                 activityMainBinding.fabPlus.startAnimation(fabFlubbershrink);
-                Toast.makeText(MainActivity.this, "Removed from Cart... Click again to add", Toast.LENGTH_SHORT).show();
+
+                final Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Wait for 800 ms for the user to observe the cart animation
+                        AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this, R.style.MyDialogTheme);
+                        alert.setTitle(R.string.remove_str);
+                        alert.setMessage("Click again to add");
+                        alert.setPositiveButton("OK", null);
+                        alert.show();
+                    }
+                }, 800);
+
                 activityMainBinding.fabCheck.hide();
                 activityMainBinding.fabCheck.setClickable(false);
             }
@@ -172,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         // A dialog box for the user to know that data is being fetched from the remote database.
         pdLoading = new ProgressDialog(MainActivity.this);
         pdLoading.setTitle("Loading");
-        pdLoading.setMessage("Loading data from URL...");
+        pdLoading.setMessage("Loading data for your query...");
         pdLoading.setCancelable(false);
         pdLoading.show();
 
@@ -187,53 +225,60 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Response<Product> response, Retrofit retrofit) {
                 ArrayList<Result> resultOfProducts = new ArrayList<>();
                 try {
+                    // If no results are found
                     List<Result> resultList = null;
                     resultList = response.body().getResults();
 
-                    /*
-                    In case we need multiple results to be fetched, we use
-                     for (int i = 0; i < resultList.size(); i++) {
-                     */
+                    if (resultList.size() == 0) {
+                        Toast.makeText(MainActivity.this, "No product found", Toast.LENGTH_LONG).show();
+                        isProductnull = true;
+                        Intent intent = new Intent(getIntent());
+                        startActivity(intent);
+                        finish();
 
-                    result = new Result();
+                    } else {
+                        /*
+                            In case we need multiple results to be fetched, we use
+                            for (int i = 0; i < resultList.size(); i++) {
+                        */
+                        result = new Result();
 
-                    // get all the credentials one by one
-                    result.setBrandName(resultList.get(0).getBrandName());
-                    result.setThumbnailImageUrl(resultList.get(0).getThumbnailImageUrl());
-                    result.setProductId(resultList.get(0).getProductId());
-                    result.setOriginalPrice(resultList.get(0).getOriginalPrice());
-                    result.setStyleId(resultList.get(0).getStyleId());
-                    result.setColorId(resultList.get(0).getColorId());
-                    result.setPrice(resultList.get(0).getPrice());
-                    result.setPercentOff(resultList.get(0).getPercentOff());
-                    result.setProductUrl(resultList.get(0).getProductUrl());
-                    result.setProductName(resultList.get(0).getProductName());
+                        // get all the credentials one by one
+                        result.setBrandName(resultList.get(0).getBrandName());
+                        result.setThumbnailImageUrl(resultList.get(0).getThumbnailImageUrl());
+                        result.setProductId(resultList.get(0).getProductId());
+                        result.setOriginalPrice(resultList.get(0).getOriginalPrice());
+                        result.setStyleId(resultList.get(0).getStyleId());
+                        result.setColorId(resultList.get(0).getColorId());
+                        result.setPrice(resultList.get(0).getPrice());
+                        result.setPercentOff(resultList.get(0).getPercentOff());
+                        result.setProductUrl(resultList.get(0).getProductUrl());
+                        result.setProductName(resultList.get(0).getProductName());
 
-                    // add to the array list and then populate the recycler view
-                    resultOfProducts.add(result);
-                    adapter = new RecyclerViewAdapter(resultOfProducts);
-                    recyclerView.setAdapter(adapter);
+                        // add to the array list and then populate the recycler view
+                        resultOfProducts.add(result);
+                        adapter = new RecyclerViewAdapter(resultOfProducts);
+                        recyclerView.setAdapter(adapter);
 
-                    // to load the image, we store the thumbnailImageUrl and then share it in the
-                    // ProductViewHolder class
-                    sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                    sharedPreferences.edit().putString("thumbnailimage", result.thumbnailImageUrl).apply();
+                        // to load the image, we store the thumbnailImageUrl and then share it in the
+                        // ProductViewHolder class
+                        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                        sharedPreferences.edit().putString("thumbnailimage", result.thumbnailImageUrl).apply();
 
-                    // we close the for loop here
-                    //}
+                        // we close the for loop here
+                        //}
 
-                    // items searched is no more null
-                    isProductnull = false;
-
+                        // items searched is no more null
+                        isProductnull = false;
+                    }
                     // dismiss the dialog
                     pdLoading.dismiss();
-
                 } catch (Exception e) {
                     Log.e("onResponse", "There is an error" + e);
                     e.printStackTrace();
                 }
-
             }
+
 
             @Override
             public void onFailure(Throwable t) {
